@@ -163,6 +163,9 @@
     <ClCompile Include="Source\InstallService.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="Source\VideoHander.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\D3D10System.h">
@@ -211,6 +214,9 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="Source\DataPacketHelpers.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\VideoHander.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

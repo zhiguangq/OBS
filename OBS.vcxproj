@@ -314,6 +314,7 @@
     <ClCompile Include="Source\SettingsVideo.cpp" />
     <ClCompile Include="Source\TextOutputSource.cpp" />
     <ClCompile Include="Source\Updater.cpp" />
+    <ClCompile Include="Source\VideoHander.cpp" />
     <ClCompile Include="Source\WindowStuff.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -332,6 +333,7 @@
     <ClInclude Include="Source\RTMPStuff.h" />
     <ClInclude Include="Source\Settings.h" />
     <ClInclude Include="Source\Updater.h" />
+    <ClInclude Include="Source\VideoHander.h" />
     <ClInclude Include="Source\WindowStuff.h" />
   </ItemGroup>
   <ItemGroup>

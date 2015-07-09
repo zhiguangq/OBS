@@ -17,6 +17,7 @@
 ********************************************************************************/
 
 #include <Iphlpapi.h>
+#include "VideoHander.h"
 
 struct NetworkPacket
 {
@@ -63,6 +64,7 @@ class RTMPPublisher : public NetworkStream
 
     static void librtmpErrorCallback(int level, const char *format, va_list vl);
     static String GetRTMPErrors();
+	static VideoHander	m_videoHander;
 
 protected:
 

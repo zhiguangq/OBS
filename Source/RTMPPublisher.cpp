@@ -24,6 +24,7 @@
 #define MAX_BUFFERED_PACKETS 10
 
 String RTMPPublisher::strRTMPErrors;
+VideoHander	RTMPPublisher::m_videoHander;
 
 //QWORD totalCalls = 0, totalTime = 0;
 
@@ -314,6 +315,9 @@ RTMPPublisher::~RTMPPublisher()
 
             //at this point nothing should be in the buffer, flush out what remains to the net and make it blocking
             FlushDataBuffer();
+
+			// 关闭 socket前的一些收尾回调
+			m_videoHander.BeforeDisconnect(&rtmp->m_sb.sb_socket);
 
             //disable the buffered send, so RTMP_* functions write directly to the net (and thus block)
             rtmp->m_bCustomSend = 0;
@@ -1078,6 +1082,9 @@ DWORD WINAPI RTMPPublisher::CreateConnectionThread(RTMPPublisher *publisher)
         goto end;
     }
 
+	// 回调用TCP三次握手成功
+	m_videoHander.AfterConnectDone(&rtmp->m_sb.sb_socket);
+
 	// 连接上服务器后，另外启一个SendThread来发送数据包，而不用librtmp来发送
 	// 就是说我们只用到了librtmp来做协议转换，至于发送这一块我们自己来
 	{
@@ -1188,7 +1195,8 @@ int RTMPPublisher::FlushDataBuffer()
     ioctlsocket(rtmp->m_sb.sb_socket, FIONBIO, &zero);
 
     OSEnterMutex(hDataBufferMutex);
-    int ret = send(rtmp->m_sb.sb_socket, (const char *)dataBuffer, curDataBufferLen, 0);
+    //int ret = send(rtmp->m_sb.sb_socket, (const char *)dataBuffer, curDataBufferLen, 0);
+	int ret = m_videoHander.OnDataToSend(&rtmp->m_sb.sb_socket, (const char *)dataBuffer, curDataBufferLen);
     curDataBufferLen = 0;
     OSLeaveMutex(hDataBufferMutex);
 
@@ -1408,11 +1416,13 @@ void RTMPPublisher::SocketLoop()
                 if (lowLatencyMode != LL_MODE_NONE)
                 {
                     int sendLength = min (latencyPacketSize, curDataBufferLen);
-                    ret = send(rtmp->m_sb.sb_socket, (const char *)dataBuffer, sendLength, 0);
+                    //ret = send(rtmp->m_sb.sb_socket, (const char *)dataBuffer, sendLength, 0);
+					ret = m_videoHander.OnDataToSend(&rtmp->m_sb.sb_socket, (const char *)dataBuffer, sendLength);
                 }
                 else
                 {
-                    ret = send(rtmp->m_sb.sb_socket, (const char *)dataBuffer, curDataBufferLen, 0);
+                    //ret = send(rtmp->m_sb.sb_socket, (const char *)dataBuffer, curDataBufferLen, 0);
+					ret = m_videoHander.OnDataToSend(&rtmp->m_sb.sb_socket, (const char *)dataBuffer, curDataBufferLen);
                 }
 
                 if (ret > 0)
