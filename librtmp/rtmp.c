@@ -1283,12 +1283,14 @@ RTMP_Connect1(RTMP *r, RTMPPacket *cp)
         r->m_msgCounter = 0;
     }
     RTMP_Log(RTMP_LOGDEBUG, "%s, ... connected, handshaking", __FUNCTION__);
+	/* // 去掉HandShake
     if (!HandShake(r, TRUE))
     {
         RTMP_Log(RTMP_LOGERROR, "%s, handshake failed.", __FUNCTION__);
         RTMP_Close(r);
         return FALSE;
     }
+	*/
     RTMP_Log(RTMP_LOGDEBUG, "%s, handshaked", __FUNCTION__);
 
     if (!SendConnectPacket(r, cp))
@@ -1336,7 +1338,7 @@ RTMP_Connect(RTMP *r, RTMPPacket *cp)
 
     r->m_bSendCounter = TRUE;
 
-    return RTMP_Connect1(r, cp);
+	return TRUE;// RTMP_Connect1(r, cp);
 }
 
 static int
@@ -1385,8 +1387,6 @@ SocksNegotiate(RTMP *r)
 int
 RTMP_ConnectStream(RTMP *r, int seekTime)
 {
-    RTMPPacket packet = { 0 };
-
     /* seekTime was already set by SetupStream / SetupURL.
      * This is only needed by ReconnectStream.
      */
@@ -1395,24 +1395,58 @@ RTMP_ConnectStream(RTMP *r, int seekTime)
 
     r->m_mediaChannel = 0;
 
-    while (!r->m_bPlaying && RTMP_IsConnected(r) && RTMP_ReadPacket(r, &packet))
+	int packetIndex = 0;
+	// 服务器发过来的rtmp信令取消了，我们自己读现有的packet，一共10个
+	while (!r->m_bPlaying && RTMP_IsConnected(r) && packetIndex < 10)
     {
-        if (RTMPPacket_IsReady(&packet))
-        {
-            if (!packet.m_nBodySize)
-                continue;
-            if ((packet.m_packetType == RTMP_PACKET_TYPE_AUDIO) ||
-                    (packet.m_packetType == RTMP_PACKET_TYPE_VIDEO) ||
-                    (packet.m_packetType == RTMP_PACKET_TYPE_INFO))
-            {
-                RTMP_Log(RTMP_LOGWARNING, "Received FLV packet before play()! Ignoring.");
-                RTMPPacket_Free(&packet);
-                continue;
-            }
+		char name[128];
+		int pack_body_size[11] = { 0, 4, 5, 690, 21, 21, 4, 21, 29, 102, 136 };
+		RTMPPacket packet_new = { 0 };
 
-            RTMP_ClientPacket(r, &packet);
-            RTMPPacket_Free(&packet);
-        }
+		sprintf(name, "package/package%d_%d.bin", ++packetIndex, pack_body_size[packetIndex]);
+
+		FILE *fp = NULL;
+		fp = fopen(name, "rb");
+		if (fp == NULL)
+		{
+			RTMP_Log(RTMP_LOGERROR, "%s, Open package file error.\n", __FUNCTION__);
+			return FALSE;
+		}
+
+		// packet结构体读出的m_body的地址是有是有问题的，申请内存放到这个代码后
+		if (fread(&packet_new, sizeof(struct RTMPPacket), 1, fp) != 1)
+		{
+			RTMP_Log(RTMP_LOGERROR, "%s, Read package file error.\n", __FUNCTION__);
+			return FALSE;
+		}
+
+		assert(pack_body_size[packetIndex] == packet_new.m_nBodySize);
+		RTMPPacket_Alloc(&packet_new, pack_body_size[packetIndex]);
+
+		// 返回1表示读取了size字节
+		if (fread(packet_new.m_body, pack_body_size[packetIndex], 1, fp) != 1)
+		{
+			RTMP_Log(RTMP_LOGERROR, "%s, Read package file error.\n", __FUNCTION__);
+			return FALSE;
+		}
+		packet_new.m_nBytesRead = pack_body_size[packetIndex];
+
+		if (!packet_new.m_nBodySize)
+			continue;
+		if ((packet_new.m_packetType == RTMP_PACKET_TYPE_AUDIO) ||
+			(packet_new.m_packetType == RTMP_PACKET_TYPE_VIDEO) ||
+			(packet_new.m_packetType == RTMP_PACKET_TYPE_INFO))
+		{
+			RTMP_Log(RTMP_LOGWARNING, "Received FLV packet before play()! Ignoring.");
+			RTMPPacket_Free(&packet_new);
+			continue;
+		}
+
+		RTMP_ClientPacket(r, &packet_new);
+
+		RTMPPacket_Free(&packet_new);
+				
+		fclose(fp);
     }
 
     return r->m_bPlaying;

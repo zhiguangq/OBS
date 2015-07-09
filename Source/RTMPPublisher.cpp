@@ -1069,6 +1069,7 @@ DWORD WINAPI RTMPPublisher::CreateConnectionThread(RTMPPublisher *publisher)
 
     DWORD startTime = OSGetTime();
 
+	// 这个connect主要是做TCP的三次握手
     if(!RTMP_Connect(rtmp, NULL))
     {
         failReason = Str("Connection.CouldNotConnect");
@@ -1076,6 +1077,23 @@ DWORD WINAPI RTMPPublisher::CreateConnectionThread(RTMPPublisher *publisher)
         bCanRetry = true;
         goto end;
     }
+
+	// 连接上服务器后，另外启一个SendThread来发送数据包，而不用librtmp来发送
+	// 就是说我们只用到了librtmp来做协议转换，至于发送这一块我们自己来
+	{
+		publisher->Init(tcpBufferSize);
+		publisher->bConnected = true;
+		publisher->bConnecting = false;
+	}
+
+	// connect1里会把
+	if (!RTMP_Connect1(rtmp, NULL))
+	{
+		failReason = Str("Connection1.CouldNotConnect");
+		failReason << TEXT("\r\n\r\n") << RTMPPublisher::GetRTMPErrors();
+		bCanRetry = true;
+		goto end;
+	}
 
     Log(TEXT("Completed handshake with %s in %u ms."), strURL.Array(), OSGetTime() - startTime);
 
@@ -1126,12 +1144,14 @@ end:
 
         publisher->bStopping = true;
     }
+	/*  
     else
     {
         publisher->Init(tcpBufferSize);
         publisher->bConnected = true;
         publisher->bConnecting = false;
     }
+	*/
 
     return 0;
 }
