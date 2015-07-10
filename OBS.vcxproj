@@ -135,7 +135,7 @@
       <IgnoreSpecificDefaultLibraries>LIBCMT</IgnoreSpecificDefaultLibraries>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(OutDir)$(ProjectName).exe rundir
+      <Command>::copy $(OutDir)$(ProjectName).exe rundir
 cd rundir
 copydebug.bat</Command>
     </PostBuildEvent>
